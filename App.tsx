@@ -5,6 +5,7 @@ import { PostCard } from './components/PostCard';
 import { Header } from './components/Header';
 import { PostDetailModal } from './components/PostDetailModal';
 import { CreatePostModal } from './components/CreatePostModal';
+import { EmptyState } from './components/EmptyState';
 import type { Post } from './types';
 
 // This data is now used to "seed" the database on the first run.
@@ -59,68 +60,73 @@ const App: React.FC = () => {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  const seedDatabase = async () => {
+    if (isSeeding) return;
+    setIsSeeding(true);
+    
+    const postsCollectionRef = collection(db, 'posts');
+    try {
+      console.log("Seeding database with initial data...");
+      for (const post of seedData) {
+        await addDoc(postsCollectionRef, {
+          ...post,
+          createdAt: serverTimestamp(),
+        });
+      }
+      console.log("Database seeded successfully.");
+    } catch (error: any) {
+      console.error("Error seeding database:", { code: error.code, message: error.message });
+      alert("Failed to seed database. Please check your Firebase configuration in firebaseConfig.ts and ensure your Firestore security rules allow writes.");
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   useEffect(() => {
-    const postsCollectionRef = collection(db, 'posts');
-    const q = query(postsCollectionRef, orderBy('createdAt', 'desc'));
+    let unsubscribe = () => {};
+    try {
+      const postsCollectionRef = collection(db, 'posts');
+      const q = query(postsCollectionRef, orderBy('createdAt', 'desc'));
 
-    // Set up real-time listener
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const postsData = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-
-        // Explicitly construct the Post object. This is crucial for avoiding
-        // circular reference errors with Firestore data. By creating new objects
-        // and arrays, we ensure only clean, serializable data is stored in the state.
-        const post: Post = {
-          id: doc.id,
-          title: data.title,
-          description: data.description,
-          imageUrls: [...(data.imageUrls || [])], // Create a new, clean array
-          user: { // Reconstruct the user object
-            name: data.user.name,
-            avatarUrl: data.user.avatarUrl,
-            phoneNumber: data.user.phoneNumber || undefined,
-          },
-          category: data.category,
-          price: data.price || null,
-          location: data.location || null,
-          eventDate: data.eventDate || null,
-          tags: data.tags ? [...data.tags] : null, // Create a new, clean array if it exists
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : null,
-        };
-        return post;
+      unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const postsData = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          const post: Post = {
+            id: doc.id,
+            title: data.title,
+            description: data.description,
+            imageUrls: [...(data.imageUrls || [])],
+            user: {
+              name: data.user.name,
+              avatarUrl: data.user.avatarUrl,
+              phoneNumber: data.user.phoneNumber || undefined,
+            },
+            category: data.category,
+            price: data.price || null,
+            location: data.location || null,
+            eventDate: data.eventDate || null,
+            tags: data.tags ? [...data.tags] : null,
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : null,
+          };
+          return post;
+        });
+        setPosts(postsData);
+        setLoading(false);
+      }, (error: any) => {
+        console.error("Error fetching posts:", { code: error.code, message: error.message });
+        // On error (e.g. invalid config), stop loading and clear posts
+        // This will cause the EmptyState component to render
+        setPosts([]);
+        setLoading(false);
       });
-      setPosts(postsData);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching posts:", error);
-      alert("Could not connect to the database. Please check your Firebase configuration in firebaseConfig.ts");
-      setLoading(false);
-    });
+    } catch (error: any) {
+        console.error("Error setting up Firestore listener:", { code: error.code, message: error.message });
+        setPosts([]);
+        setLoading(false);
+    }
 
-    // Seed data if the collection is empty
-    const seedDatabase = async () => {
-      try {
-        const snapshot = await getDocs(postsCollectionRef);
-        if (snapshot.empty) {
-          console.log("Empty collection detected, seeding database...");
-          for (const post of seedData) {
-            await addDoc(postsCollectionRef, {
-              ...post,
-              createdAt: serverTimestamp(),
-            });
-          }
-          console.log("Database seeded successfully.");
-        }
-      } catch (error) {
-        console.error("Error seeding database:", error);
-      }
-    };
-    
-    seedDatabase();
-
-    // Cleanup listener on unmount
     return () => unsubscribe();
   }, []);
 
@@ -164,8 +170,8 @@ const App: React.FC = () => {
             createdAt: serverTimestamp()
         });
         setCreateModalOpen(false);
-    } catch (e) {
-        console.error("Error adding document: ", e);
+    } catch (e: any) {
+        console.error("Error adding document: ", { code: e.code, message: e.message });
         alert("There was an error submitting your post. Please try again.");
     }
   };
@@ -204,12 +210,14 @@ const App: React.FC = () => {
             <div className="flex justify-center items-center h-64">
                 <p className="text-xl text-neutral-500">Loading feed...</p>
             </div>
-        ) : (
+        ) : posts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             {filteredPosts.map((post) => (
                 <PostCard key={post.id} post={post} onClick={() => handlePostClick(post)} />
             ))}
             </div>
+        ) : (
+            <EmptyState onSeedDatabase={seedDatabase} isSeeding={isSeeding} />
         )}
       </main>
       
