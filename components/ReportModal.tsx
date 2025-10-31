@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Post } from '../types';
+import { reportPost } from '../backendService';
 import { XIcon } from './IconComponents';
 
 interface ReportModalProps {
@@ -22,15 +23,22 @@ export const ReportModal: React.FC<ReportModalProps> = ({ post, onClose }) => {
     };
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
         alert("Please provide a reason for your report.");
         return;
     }
-    console.log(`Reporting post ${post.id} for reason: ${reason}`);
-    setSubmitted(true);
-    setTimeout(onClose, 2000); // Close modal after 2 seconds
+    
+    try {
+      console.log(`Reporting post ${post.id} for reason: ${reason}`);
+      await reportPost(post.id, reason);
+      setSubmitted(true);
+      setTimeout(onClose, 2000); // Close modal after 2 seconds
+    } catch (error: any) {
+      console.error('Error submitting report:', error);
+      alert('Failed to submit report. Please try again.');
+    }
   };
 
   return (

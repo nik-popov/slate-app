@@ -19,50 +19,78 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onClick }) => {
     switch (post.category) {
       case 'sale':
       case 'job':
-        return <span className="text-lg font-bold text-white truncate">{post.price}</span>;
+        return <span className="text-lg font-bold text-white drop-shadow-md">{post.price}</span>;
       case 'event':
         return (
-          <div className="flex items-center text-sm text-neutral-300">
+          <div className="flex items-center text-sm text-white/90 drop-shadow-md">
             <CalendarIcon />
-            <span>{post.eventDate}</span>
+            <span className="ml-1">{post.eventDate}</span>
           </div>
         );
       case 'service':
-        return <span className="text-sm font-medium text-neutral-300">View Details</span>;
+        return <span className="text-sm font-medium text-white/80 drop-shadow-md">Service Available</span>;
       default:
-        return <div className="h-6"></div>; // Placeholder for consistent height
+        return null;
     }
   };
 
   return (
     <div 
       onClick={onClick}
-      className="group relative overflow-hidden rounded-lg bg-black/60 backdrop-blur-lg border border-transparent hover:border-neutral-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1 cursor-pointer flex flex-col"
+      className="group relative overflow-hidden rounded-xl bg-black/60 backdrop-blur-lg border border-transparent hover:border-neutral-700/50 transition-all duration-300 ease-out transform hover:-translate-y-1 hover:shadow-xl cursor-pointer"
     >
-      <div className="relative">
+      {/* Image Container */}
+      <div className="relative w-full h-64 sm:h-72 lg:h-80 overflow-hidden">
         <img
           src={post.imageUrls[0]}
           alt={post.title}
-          className="w-full h-80 object-cover transition-transform duration-300 group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
-        <div className="absolute bottom-0 left-0 p-4">
-             <h3 className="text-white text-lg font-bold truncate">{post.title}</h3>
-        </div>
-      </div>
-      <div className="p-4 bg-black/70 flex flex-col flex-grow justify-between">
-        <div className="flex items-center justify-between h-7">
-          {renderKeyInfo()}
-        </div>
-        <div className="flex items-center text-neutral-400 text-xs mt-2">
-            <div className="flex items-center min-w-0">
-              <MapPinIcon />
-              <span className="truncate">{post.location}</span>
+        
+        {/* Gradient Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+        
+        {/* Multiple Images Indicator */}
+        {post.imageUrls.length > 1 && (
+          <div className="absolute top-3 right-3">
+            <div className="bg-black/40 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-full border border-white/20 flex items-center space-x-1">
+              <span>📸</span>
+              <span>{post.imageUrls.length}</span>
             </div>
-            <span className="mx-2 text-neutral-600 flex-shrink-0">•</span>
-            <div className="bg-neutral-800 text-neutral-300 text-xs font-bold px-2 py-1 rounded-full flex-shrink-0">
-              {categoryText[post.category]}
+          </div>
+        )}
+
+        {/* Content Overlay */}
+        <div className="absolute bottom-0 left-0 right-0 p-4">
+          {/* Background shade for text readability */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent rounded-b-xl"></div>
+          
+          {/* Content */}
+          <div className="relative z-10">
+            {/* Key Info (Price/Date) */}
+            <div className="mb-2">
+              {renderKeyInfo()}
             </div>
+            
+            {/* Title */}
+            <h3 className="text-white text-lg font-bold mb-3 drop-shadow-md leading-tight line-clamp-2">
+              {post.title}
+            </h3>
+            
+            {/* Location and Category */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-white/80 text-sm drop-shadow-md min-w-0 flex-1">
+                <MapPinIcon />
+                <span className="ml-1 truncate">{post.location}</span>
+              </div>
+              <div className="ml-3 flex-shrink-0">
+                <span className="bg-white/20 backdrop-blur-sm text-white text-xs font-semibold px-2 py-1 rounded-full border border-white/30">
+                  {categoryText[post.category]}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -6,10 +6,20 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit",
+    "lint": "echo 'No linter configured'",
+    "setup": "./dev-setup.sh",
+    "start": "npm run dev",
+    "deploy:firebase": "npm run build && firebase deploy",
+    "deploy:vercel": "npm run build && vercel --prod",
+    "deploy:netlify": "npm run build && netlify deploy --dir=dist --prod",
+    "deploy:check": "npm run type-check && npm run build",
+    "seed": "node seed-database.js"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.16",
+    "dotenv": "^17.2.3",
     "firebase": "^12.5.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

@@ -1,10 +1,16 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { collection, query, onSnapshot, addDoc, getDocs, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebaseConfig';
+import { onAuthStateChange, signOutUser, getCurrentUser, type AuthUser } from './authService';
+import { searchPosts } from './backendService';
+import { reinitializeFirebase, isFirebaseConfigured } from './firebaseConfig';
 import { PostCard } from './components/PostCard';
 import { Header } from './components/Header';
 import { PostDetailModal } from './components/PostDetailModal';
 import { CreatePostModal } from './components/CreatePostModal';
+import { LoginModal } from './components/LoginModal';
+import { UserProfileModal } from './components/UserProfileModal';
+import { DatabaseSetupModal } from './components/DatabaseSetupModal';
 import { EmptyState } from './components/EmptyState';
 import type { Post } from './types';
 
@@ -60,11 +66,29 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<Category>('all');
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+  const [isLoginModalOpen, setLoginModalOpen] = useState(false);
+  const [isProfileModalOpen, setProfileModalOpen] = useState(false);
+  const [isDatabaseSetupOpen, setDatabaseSetupOpen] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Post[]>([]);
 
-  console.log('📊 App state:', { postsCount: posts.length, loading, activeCategory });
+  console.log('📊 App state:', { postsCount: posts.length, loading, activeCategory, user: user?.email });
+
+  // Auth state listener
+  useEffect(() => {
+    console.log('👤 Setting up auth state listener...');
+    const unsubscribe = onAuthStateChange((user) => {
+      console.log('👤 Auth state changed:', user?.email || 'signed out');
+      setUser(user);
+      setAuthLoading(false);
+    });
+
+    return unsubscribe;
+  }, []);
 
   const seedDatabase = async () => {
     if (isSeeding) return;
@@ -144,11 +168,17 @@ const App: React.FC = () => {
 
 
   const filteredPosts = useMemo(() => {
+    // If there's a search query, use search results
+    if (searchQuery.trim()) {
+      return searchResults;
+    }
+    
+    // Otherwise filter by category
     if (activeCategory === 'all') {
       return posts;
     }
     return posts.filter(post => post.category === activeCategory);
-  }, [activeCategory, posts]);
+  }, [activeCategory, posts, searchQuery, searchResults]);
   
   const categories: { id: Category, name: string }[] = [
     { id: 'all', name: 'All' },
@@ -166,19 +196,81 @@ const App: React.FC = () => {
     setSelectedPost(null);
   };
 
-  const handleLoginToggle = () => {
-    setIsLoggedIn(!isLoggedIn);
+  const handleLoginClick = () => {
+    setLoginModalOpen(true);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOutUser();
+      console.log('✅ User logged out successfully');
+    } catch (error) {
+      console.error('❌ Error logging out:', error);
+    }
+  };
+
+  const handleLoginSuccess = () => {
+    console.log('✅ Login successful');
+    setLoginModalOpen(false);
+  };
+
+  const handleSearch = async (query: string) => {
+    console.log('🔍 Searching for:', query);
+    setSearchQuery(query);
+    
+    try {
+      const results = await searchPosts(query, activeCategory !== 'all' ? activeCategory : undefined);
+      setSearchResults(results as Post[]);
+    } catch (error) {
+      console.error('❌ Search failed:', error);
+      setSearchResults([]);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
+  const handleProfileClick = () => {
+    setProfileModalOpen(true);
+  };
+
+  const handleDatabaseSetup = (config: any) => {
+    console.log('🔧 Setting up database configuration...');
+    
+    // Use the reinitializeFirebase function to persist the config
+    const success = reinitializeFirebase(config);
+    
+    if (success) {
+      console.log('✅ Firebase configuration saved and initialized');
+      setDatabaseSetupOpen(false);
+      
+      // The page will reload automatically from reinitializeFirebase
+      // which will pick up the new configuration
+    } else {
+      alert('Failed to configure Firebase. Please check your configuration values and try again.');
+    }
   };
   
   const handleCreatePost = async (newPostData: Omit<Post, 'id' | 'user' | 'createdAt'>) => {
-    const user = isLoggedIn 
-      ? { name: "Current User", avatarUrl: "https://picsum.photos/seed/currentuser/100/100", phoneNumber: "+15559998888" }
-      : { name: "Anonymous", avatarUrl: "https://picsum.photos/seed/anonymous/100/100", phoneNumber: "+15550001111" };
+    const currentUser = getCurrentUser();
+    const postUser = currentUser 
+      ? { 
+          name: currentUser.displayName || currentUser.email || 'User', 
+          avatarUrl: currentUser.photoURL || `https://picsum.photos/seed/${currentUser.uid}/100/100`,
+          phoneNumber: undefined
+        }
+      : { 
+          name: "Anonymous", 
+          avatarUrl: "https://picsum.photos/seed/anonymous/100/100", 
+          phoneNumber: undefined
+        };
 
     try {
         await addDoc(collection(db, 'posts'), {
             ...newPostData,
-            user,
+            user: postUser,
             createdAt: serverTimestamp()
         });
         setCreateModalOpen(false);
@@ -191,27 +283,57 @@ const App: React.FC = () => {
 
   console.log('🎨 About to render App with:', { loading, postsLength: posts.length, filteredPostsLength: filteredPosts.length });
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-black text-neutral-100 font-sans flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl text-neutral-500">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black text-neutral-100 font-sans flex flex-col">
       <Header 
-        isLoggedIn={isLoggedIn} 
-        onLoginToggle={handleLoginToggle}
+        isLoggedIn={!!user} 
+        user={user}
+        onLoginClick={handleLoginClick}
+        onLogout={handleLogout}
         onCreatePostClick={() => setCreateModalOpen(true)}
+        onSearch={handleSearch}
+        onProfileClick={handleProfileClick}
       />
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow">
-        <h1 className="text-4xl font-bold text-white mb-2">Global Feed</h1>
-        <p className="text-neutral-400 mb-8">Find what you need, right around the corner.</p>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight">
+            {searchQuery ? 'Search Results' : 'Discover'}
+          </h1>
+          {searchQuery && (
+            <button
+              onClick={clearSearch}
+              className="text-neutral-400 hover:text-white text-sm underline transition-colors"
+            >
+              Clear search
+            </button>
+          )}
+        </div>
+        <p className="text-neutral-400 mb-8 text-base lg:text-lg">
+          {searchQuery 
+            ? `Found ${filteredPosts.length} result${filteredPosts.length !== 1 ? 's' : ''} for "${searchQuery}"` 
+            : 'Find what you need, right around the corner.'}
+        </p>
         
         <div className="mb-8">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             {categories.map(({ id, name }) => (
               <button
                 key={id}
                 onClick={() => setActiveCategory(id)}
-                className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors duration-200 ${
+                className={`px-4 py-2.5 text-sm font-semibold rounded-full transition-all duration-200 transform hover:scale-105 ${
                   activeCategory === id
-                    ? 'bg-white text-black'
-                    : 'bg-neutral-900 text-neutral-300 hover:bg-neutral-800'
+                    ? 'bg-white text-black shadow-lg'
+                    : 'bg-neutral-900/80 text-neutral-300 hover:bg-neutral-800 hover:text-white border border-neutral-700 hover:border-neutral-600'
                 }`}
               >
                 {name}
@@ -225,13 +347,17 @@ const App: React.FC = () => {
                 <p className="text-xl text-neutral-500">Loading feed...</p>
             </div>
         ) : posts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
             {filteredPosts.map((post) => (
                 <PostCard key={post.id} post={post} onClick={() => handlePostClick(post)} />
             ))}
             </div>
         ) : (
-            <EmptyState onSeedDatabase={seedDatabase} isSeeding={isSeeding} />
+            <EmptyState 
+              onSeedDatabase={seedDatabase} 
+              onSetupDatabase={() => setDatabaseSetupOpen(true)}
+              isSeeding={isSeeding} 
+            />
         )}
       </main>
       
@@ -239,7 +365,7 @@ const App: React.FC = () => {
         <PostDetailModal 
           post={selectedPost} 
           onClose={handleCloseModal} 
-          isLoggedIn={isLoggedIn}
+          isLoggedIn={!!user}
         />
       )}
 
@@ -247,6 +373,29 @@ const App: React.FC = () => {
         <CreatePostModal 
           onClose={() => setCreateModalOpen(false)}
           onSubmit={handleCreatePost}
+        />
+      )}
+
+      {isLoginModalOpen && (
+        <LoginModal 
+          isOpen={isLoginModalOpen}
+          onClose={() => setLoginModalOpen(false)}
+          onSuccess={handleLoginSuccess}
+        />
+      )}
+
+      {isProfileModalOpen && (
+        <UserProfileModal 
+          isOpen={isProfileModalOpen}
+          onClose={() => setProfileModalOpen(false)}
+        />
+      )}
+
+      {isDatabaseSetupOpen && (
+        <DatabaseSetupModal 
+          isOpen={isDatabaseSetupOpen}
+          onClose={() => setDatabaseSetupOpen(false)}
+          onSubmit={handleDatabaseSetup}
         />
       )}
 
