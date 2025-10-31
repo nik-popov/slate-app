@@ -2,6 +2,10 @@ export interface User {
   name: string;
   avatarUrl: string;
   phoneNumber?: string;
+  // Optional profile metrics
+  totalPosts?: number;
+  totalLikes?: number;
+  etf?: string | number;
 }
 
 export interface Post {

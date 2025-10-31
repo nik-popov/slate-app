@@ -363,17 +363,33 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, onClose,
   }
   
   const renderUserInfo = () => (
-    <div className="flex items-center">
-        <img
-            src={post.user.avatarUrl}
-            alt={post.user.name}
-            className="w-10 h-10 rounded-full object-cover border-2 border-neutral-600"
-        />
-        <div className="ml-3">
-            <p className="text-sm text-neutral-400">Posted by</p>
-            <p className="font-semibold text-white">{post.user.name}</p>
+  <div className="flex items-center">
+    <img
+      src={post.user.avatarUrl}
+      alt={post.user.name}
+      className="w-10 h-10 rounded-full object-cover border-2 border-neutral-600"
+    />
+    <div className="ml-3">
+      <p className="text-sm text-neutral-400">Posted by</p>
+      <p className="font-semibold text-white">{post.user.name}</p>
+      <div className="mt-1 flex items-center space-x-4 text-sm text-neutral-400">
+        <div>
+          <span className="text-neutral-400">Posts: </span>
+          <span className="text-white font-medium">{post.user.totalPosts ?? 0}</span>
         </div>
+        <div>
+          <span className="text-neutral-400">Likes: </span>
+          <span className="text-white font-medium">{post.user.totalLikes ?? 0}</span>
+        </div>
+        {post.user.etf !== undefined && (
+          <div>
+          <span className="text-neutral-400">ETF: </span>
+          <span className="text-white font-medium">{post.user.etf}</span>
+          </div>
+        )}
+      </div>
     </div>
+  </div>
   );
 
   return (
@@ -477,8 +493,8 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, onClose,
             {/* Footer Section - Actions and User Info */}
             <div className="border-t border-neutral-800/50 p-6 bg-neutral-900/50">
               <div className="space-y-6">
-                  <div>{renderActionButtons()}</div>
-                  <div className="pt-4 border-t border-neutral-800/50">{renderUserInfo()}</div>
+                  <div>{renderUserInfo()}</div>
+                  <div className="pt-2">{renderActionButtons()}</div>
               </div>
             </div>
           </div>

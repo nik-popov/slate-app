@@ -616,7 +616,9 @@ export const searchPosts = async (searchQuery: string, category?: string): Promi
 };
 
 // USER PROFILE MANAGEMENT
-export const createUserProfile = async (profileData: Omit<UserProfile, 'id' | 'userId' | 'createdAt' | 'updatedAt'>): Promise<UserProfile> => {
+export const createUserProfile = async (
+  profileData: Omit<UserProfile, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'premium'> & Partial<Pick<UserProfile, 'premium'>>
+): Promise<UserProfile> => {
   const currentUser = getCurrentUser();
   if (!currentUser) {
     throw new Error('User must be logged in to create profile');
