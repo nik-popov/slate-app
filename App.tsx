@@ -54,6 +54,8 @@ const seedData: Omit<Post, 'id' | 'createdAt'>[] = [
 type Category = 'all' | 'sale' | 'event' | 'service' | 'job';
 
 const App: React.FC = () => {
+  console.log('🏗️ App component initializing...');
+  
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<Category>('all');
@@ -61,6 +63,8 @@ const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
+
+  console.log('📊 App state:', { postsCount: posts.length, loading, activeCategory });
 
   const seedDatabase = async () => {
     if (isSeeding) return;
@@ -85,12 +89,16 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    console.log('🔥 Setting up Firebase listener...');
     let unsubscribe = () => {};
     try {
+      console.log('📚 Creating Firestore collection reference...');
       const postsCollectionRef = collection(db, 'posts');
       const q = query(postsCollectionRef, orderBy('createdAt', 'desc'));
 
+      console.log('👂 Setting up onSnapshot listener...');
       unsubscribe = onSnapshot(q, (querySnapshot) => {
+        console.log('📨 Received snapshot with', querySnapshot.docs.length, 'documents');
         const postsData = querySnapshot.docs.map(doc => {
           const data = doc.data();
           const post: Post = {
@@ -112,22 +120,26 @@ const App: React.FC = () => {
           };
           return post;
         });
+        console.log('✅ Processed posts data:', postsData.length, 'posts');
         setPosts(postsData);
         setLoading(false);
       }, (error: any) => {
-        console.error("Error fetching posts:", { code: error.code, message: error.message });
+        console.error("❌ Error fetching posts:", { code: error.code, message: error.message });
         // On error (e.g. invalid config), stop loading and clear posts
         // This will cause the EmptyState component to render
         setPosts([]);
         setLoading(false);
       });
     } catch (error: any) {
-        console.error("Error setting up Firestore listener:", { code: error.code, message: error.message });
+        console.error("❌ Error setting up Firestore listener:", { code: error.code, message: error.message });
         setPosts([]);
         setLoading(false);
     }
 
-    return () => unsubscribe();
+    return () => {
+      console.log('🧹 Cleaning up Firebase listener');
+      unsubscribe();
+    };
   }, []);
 
 
@@ -176,6 +188,8 @@ const App: React.FC = () => {
     }
   };
 
+
+  console.log('🎨 About to render App with:', { loading, postsLength: posts.length, filteredPostsLength: filteredPosts.length });
 
   return (
     <div className="min-h-screen bg-black text-neutral-100 font-sans flex flex-col">
