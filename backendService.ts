@@ -85,6 +85,7 @@ export interface UserProfile {
   bio?: string;
   location?: string;
   phoneNumber?: string;
+  premium: boolean;
   preferences: {
     notifications: boolean;
     emailUpdates: boolean;
@@ -625,6 +626,7 @@ export const createUserProfile = async (profileData: Omit<UserProfile, 'id' | 'u
 
   const userProfileData = {
     userId: currentUser.uid,
+    premium: false, // Default to non-premium
     ...profileData,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -695,5 +697,33 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
   } catch (error: any) {
     console.error('❌ Error fetching user profile:', error);
     return null;
+  }
+};
+
+// Upgrade user to premium
+export const upgradeUserToPremium = async (): Promise<void> => {
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    throw new Error('User must be logged in to upgrade to premium');
+  }
+
+  console.log('⭐ Upgrading user to premium:', currentUser.uid);
+
+  try {
+    const userProfile = await getUserProfile();
+    if (!userProfile) {
+      throw new Error('User profile not found');
+    }
+
+    const profileRef = doc(db, 'user_profiles', userProfile.id);
+    await updateDoc(profileRef, {
+      premium: true,
+      updatedAt: serverTimestamp()
+    });
+
+    console.log('✅ User upgraded to premium:', userProfile.id);
+  } catch (error: any) {
+    console.error('❌ Error upgrading user to premium:', error);
+    throw error;
   }
 };

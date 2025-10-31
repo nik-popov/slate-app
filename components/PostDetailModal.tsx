@@ -336,22 +336,25 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, onClose,
   }
 
   const renderSecondaryActions = () => {
-      const commonClasses = "flex items-center space-x-1.5 hover:text-white transition-colors";
+      const baseClasses = "flex items-center space-x-1.5 transition-all duration-200 font-medium";
+      const shareClasses = `${baseClasses} text-blue-400 hover:text-blue-300 hover:scale-105`;
+      const smsClasses = `${baseClasses} text-green-400 hover:text-green-300 hover:scale-105`;
+      const reportClasses = `${baseClasses} text-red-400 hover:text-red-300 hover:scale-105`;
       const smsBody = `Hi, I'm interested in your post "${post.title}" on Slate.`;
       
       return (
-        <div className="flex items-center space-x-6 text-sm text-neutral-400">
-            <button className={commonClasses} onClick={() => setShareModalOpen(true)}>
+        <div className="flex items-center space-x-8 text-sm">
+            <button className={shareClasses} onClick={() => setShareModalOpen(true)}>
                 <ShareIcon />
                 <span>Share</span>
             </button>
             {post.user.phoneNumber && (
-                <a href={`sms:${post.user.phoneNumber}?&body=${encodeURIComponent(smsBody)}`} className={commonClasses}>
+                <a href={`sms:${post.user.phoneNumber}?&body=${encodeURIComponent(smsBody)}`} className={smsClasses}>
                     <MessageSquareIcon />
                     <span>SMS</span>
                 </a>
             )}
-            <button className={commonClasses} onClick={() => setReportModalOpen(true)}>
+            <button className={reportClasses} onClick={() => setReportModalOpen(true)}>
                 <FlagIcon />
                 <span>Report</span>
             </button>
@@ -359,19 +362,47 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, onClose,
       )
   }
   
-  const renderUserInfo = () => (
-    <div className="flex items-center">
-        <img
+  const renderUserInfo = () => {
+    // Mock user stats - in a real app, these would come from the backend
+    const userStats = {
+      totalPosts: Math.floor(Math.random() * 50) + 5, // Random between 5-55
+      totalLikes: Math.floor(Math.random() * 200) + 20, // Random between 20-220
+      memberSince: '2023', // Could be dynamic based on user creation date
+      responseRate: Math.floor(Math.random() * 30) + 70 // Random between 70-100%
+    };
+
+    return (
+      <div className="flex items-center justify-between">
+        <div className="flex items-center">
+          <img
             src={post.user.avatarUrl}
             alt={post.user.name}
-            className="w-10 h-10 rounded-full object-cover border-2 border-neutral-600"
-        />
-        <div className="ml-3">
+            className="w-12 h-12 rounded-full object-cover border-2 border-neutral-600"
+          />
+          <div className="ml-3">
             <p className="text-sm text-neutral-400">Posted by</p>
-            <p className="font-semibold text-white">{post.user.name}</p>
+            <p className="font-semibold text-white text-lg">{post.user.name}</p>
+            <p className="text-xs text-neutral-500">Member since {userStats.memberSince}</p>
+          </div>
         </div>
-    </div>
-  );
+        
+        <div className="flex space-x-6 text-center">
+          <div>
+            <p className="text-lg font-bold text-white">{userStats.totalPosts}</p>
+            <p className="text-xs text-neutral-400">Posts</p>
+          </div>
+          <div>
+            <p className="text-lg font-bold text-white">{userStats.totalLikes}</p>
+            <p className="text-xs text-neutral-400">Likes</p>
+          </div>
+          <div>
+            <p className="text-lg font-bold text-green-400">{userStats.responseRate}%</p>
+            <p className="text-xs text-neutral-400">Response</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
@@ -448,7 +479,10 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, onClose,
               )}
 
               <div className="mb-4">{renderMetaInfo()}</div>
-              <div>{renderSecondaryActions()}</div>
+              <div className="mb-4">{renderSecondaryActions()}</div>
+              <div className="border-t border-neutral-800/50 pt-4">
+                {renderActionButtons()}
+              </div>
             </div>
             
             {/* Content Section - Scrollable */}
@@ -471,25 +505,9 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, onClose,
               </div>
             </div>
             
-            {/* Footer Section - Actions and User Info */}
+            {/* Footer Section - User Info */}
             <div className="border-t border-neutral-800/50 p-6 bg-neutral-900/50">
-              {isLoggedIn ? (
-                  <div className="space-y-6">
-                      <div>{renderActionButtons()}</div>
-                      <div className="pt-4 border-t border-neutral-800/50">{renderUserInfo()}</div>
-                  </div>
-              ) : (
-                  <div className="space-y-6">
-                      <div>
-                          <h3 className="text-xl font-bold text-white mb-3">Unlock Full Access</h3>
-                          <p className="text-neutral-300 mb-6">Log in or create an account to interact with this post.</p>
-                          <div className="blur-sm pointer-events-none select-none opacity-60">
-                              {renderActionButtons()}
-                          </div>
-                      </div>
-                      <div className="pt-4 border-t border-neutral-800/50">{renderUserInfo()}</div>
-                  </div>
-              )}
+              <div>{renderUserInfo()}</div>
             </div>
           </div>
         </div>

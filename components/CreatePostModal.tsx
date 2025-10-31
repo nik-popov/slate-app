@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import type { Post } from '../types';
 import { XIcon } from './IconComponents';
+import { getUserProfile, upgradeUserToPremium } from '../backendService';
+import { PremiumUpgradeModal } from './PremiumUpgradeModal';
 
 interface CreatePostModalProps {
   onClose: () => void;
@@ -18,15 +20,60 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onSub
   const [location, setLocation] = useState('');
   const [imageSource, setImageSource] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isPremium, setIsPremium] = useState<boolean | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [checkingPremium, setCheckingPremium] = useState(true);
 
   useEffect(() => {
     // Prevent background scrolling when the modal is open
     const originalStyle = window.getComputedStyle(document.body).overflow;
     document.body.style.overflow = 'hidden';
+    
+    // Check premium status
+    const checkPremiumStatus = async () => {
+      try {
+        setCheckingPremium(true);
+        const userProfile = await getUserProfile();
+        setIsPremium(userProfile?.premium || false);
+      } catch (error) {
+        console.error('Error checking premium status:', error);
+        setIsPremium(false);
+      } finally {
+        setCheckingPremium(false);
+      }
+    };
+
+    checkPremiumStatus();
+
     return () => {
       document.body.style.overflow = originalStyle;
     };
   }, []);
+
+  // If user is not premium, show upgrade modal instead
+  useEffect(() => {
+    if (!checkingPremium && isPremium === false) {
+      setShowUpgradeModal(true);
+    }
+  }, [checkingPremium, isPremium]);
+
+  const handleUpgrade = async () => {
+    try {
+      await upgradeUserToPremium();
+      setIsPremium(true);
+      setShowUpgradeModal(false);
+      // In a real app, you'd integrate with a payment processor here
+      alert('🎉 Congratulations! You\'ve been upgraded to Premium! (This is a demo - no actual payment was processed)');
+    } catch (error) {
+      console.error('Error upgrading to premium:', error);
+      alert('Failed to upgrade to premium. Please try again.');
+    }
+  };
+
+  const handleCloseUpgrade = () => {
+    setShowUpgradeModal(false);
+    onClose(); // Close the entire modal flow
+  };
 
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,6 +116,42 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onSub
   const priceLabel = category === 'job' ? 'Salary / Rate' : 'Price';
 
   const commonInputClasses = "w-full bg-neutral-900 border border-neutral-700 rounded-md py-2 px-3 text-sm placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-white focus:border-white transition";
+
+  // Show premium upgrade modal if user is not premium
+  if (showUpgradeModal) {
+    return (
+      <PremiumUpgradeModal
+        isOpen={true}
+        onClose={handleCloseUpgrade}
+        onUpgrade={handleUpgrade}
+      />
+    );
+  }
+
+  // Show loading state while checking premium status
+  if (checkingPremium) {
+    return (
+      <div 
+        className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in"
+        onClick={onClose}
+      >
+        <div 
+          className="bg-neutral-900/80 backdrop-blur-md border border-neutral-700/50 rounded-lg shadow-2xl w-full max-w-lg p-8 animate-slide-up text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-white">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+            <p>Checking your account status...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Only show create post form if user is premium
+  if (!isPremium) {
+    return null;
+  }
 
   return (
     <div 
@@ -166,6 +249,19 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ onClose, onSub
           </form>
         </div>
       </div>
+      
+      <style>{`
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slide-up {
+            from { transform: translateY(20px) scale(0.98); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+        .animate-slide-up { animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+      `}</style>
     </div>
   );
 };

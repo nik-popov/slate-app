@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { collection, query, onSnapshot, addDoc, getDocs, orderBy, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 import { onAuthStateChange, signOutUser, getCurrentUser, type AuthUser } from './authService';
-import { searchPosts } from './backendService';
+import { searchPosts, getUserProfile } from './backendService';
 import { reinitializeFirebase, isFirebaseConfigured } from './firebaseConfig';
 import { PostCard } from './components/PostCard';
 import { Header } from './components/Header';
@@ -67,6 +67,7 @@ const App: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<Category>('all');
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isPremium, setIsPremium] = useState<boolean>(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [isLoginModalOpen, setLoginModalOpen] = useState(false);
@@ -81,10 +82,23 @@ const App: React.FC = () => {
   // Auth state listener
   useEffect(() => {
     console.log('👤 Setting up auth state listener...');
-    const unsubscribe = onAuthStateChange((user) => {
+    const unsubscribe = onAuthStateChange(async (user) => {
       console.log('👤 Auth state changed:', user?.email || 'signed out');
       setUser(user);
       setAuthLoading(false);
+      
+      // Check premium status when user logs in
+      if (user) {
+        try {
+          const userProfile = await getUserProfile();
+          setIsPremium(userProfile?.premium || false);
+        } catch (error) {
+          console.error('Error checking premium status:', error);
+          setIsPremium(false);
+        }
+      } else {
+        setIsPremium(false);
+      }
     });
 
     return unsubscribe;
@@ -298,6 +312,7 @@ const App: React.FC = () => {
       <Header 
         isLoggedIn={!!user} 
         user={user}
+        isPremium={isPremium}
         onLoginClick={handleLoginClick}
         onLogout={handleLogout}
         onCreatePostClick={() => setCreateModalOpen(true)}

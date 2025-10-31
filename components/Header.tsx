@@ -5,6 +5,7 @@ import type { AuthUser } from '../authService';
 interface HeaderProps {
   isLoggedIn: boolean;
   user: AuthUser | null;
+  isPremium?: boolean;
   onLoginClick: () => void;
   onLogout: () => void;
   onCreatePostClick: () => void;
@@ -12,7 +13,7 @@ interface HeaderProps {
   onProfileClick?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, onLogout, onCreatePostClick, onSearch, onProfileClick }) => {
+export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, isPremium, onLoginClick, onLogout, onCreatePostClick, onSearch, onProfileClick }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -60,17 +61,30 @@ export const Header: React.FC<HeaderProps> = ({ isLoggedIn, user, onLoginClick, 
 
             <button
                 onClick={onCreatePostClick}
-                className="flex items-center space-x-2 bg-neutral-800 text-neutral-200 hover:bg-neutral-700 px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-200"
+                className="flex items-center space-x-2 bg-neutral-800 text-neutral-200 hover:bg-neutral-700 px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-200 relative"
               >
                 <PlusIcon />
                 <span className="hidden sm:inline">Create Post</span>
+                {isLoggedIn && !isPremium && (
+                  <span className="absolute -top-1 -right-1 bg-yellow-500 text-black text-xs px-1.5 py-0.5 rounded-full font-bold">
+                    Premium
+                  </span>
+                )}
             </button>
 
             {isLoggedIn ? (
               <div className="flex items-center space-x-4">
-                <span className="text-neutral-300 text-sm hidden sm:inline">
-                  Welcome, {user?.displayName || user?.email}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-neutral-300 text-sm hidden sm:inline">
+                    Welcome, {user?.displayName || user?.email}
+                  </span>
+                  {isPremium && (
+                    <span className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs px-2 py-1 rounded-full font-bold flex items-center space-x-1">
+                      <span>⭐</span>
+                      <span>Premium</span>
+                    </span>
+                  )}
+                </div>
                 <button
                   onClick={onLogout}
                   className="bg-neutral-800 text-neutral-300 hover:bg-neutral-700 px-3 py-2 text-sm font-semibold rounded-md transition-colors duration-200"
