@@ -1,0 +1,5 @@
+{
+  "name": "Slate",
+  "description": "A local marketplace and community board where users can browse items for sale, discover local events, and find services. The app features category filtering and a clean, modern interface.",
+  "requestFramePermissions": []
+}
